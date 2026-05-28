@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: air-quality-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: air-quality
+  template:
+    metadata:
+      labels:
+        app: air-quality
+    spec:
+      containers:
+      - name: air-quality-container
+        # JANGAN LUPA: Ubah bagian ini dengan username Docker Hub milikmu
+        image: rifqiyusufi/air-quality-monitor:v1
+        ports:
+        - containerPort: 5000
+        # Ambil semua key di ConfigMap sebagai environment variable
+        envFrom:
+        - configMapRef:
+            name: air-quality-config
+        resources:
+          requests:
+            cpu: "100m"
+          limits:
+            cpu: "250m"

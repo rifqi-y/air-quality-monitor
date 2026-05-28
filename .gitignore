@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Binari / executable (mis. eksctl, kubectl yang diunduh lokal)
+*.exe
+eksctl*
+kubectl*
+
+# Dokumen / laporan (dikumpulkan terpisah, bukan di repo)
+*.doc
+*.docx
+*.pdf
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+*.odt
+~$*
+
+# Log & file sementara
+*.log
+server.log
+*.tmp
+*.bak
+
+# Secret / environment
+.env
+*.env
+
+# File OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.idea/
+*.swp
+
+Dokmumen/

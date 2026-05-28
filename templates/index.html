@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        :root {
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: rgba(15, 23, 42, 0.08);
+            --accent: #10b981;
+            --ring-track: rgba(15, 23, 42, 0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            padding: 32px 24px;
+            background: radial-gradient(1200px 600px at 50% -10%, #eef2ff 0%, #f8fafc 55%, #f1f5f9 100%);
+            background-attachment: fixed;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+        .app-header { margin-bottom: 24px; }
+
+        .app-header h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .app-header p {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 20px 50px -24px rgba(15, 23, 42, 0.22);
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        /* ---- Gauge panel ---- */
+        .gauge-panel { display: flex; flex-direction: column; }
+
+        .gauge {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 4px auto 0;
+        }
+
+        .gauge svg { transform: rotate(-90deg); }
+        .gauge .ring-track { stroke: var(--ring-track); }
+        .gauge .ring-value {
+            stroke: var(--accent);
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.5s ease;
+        }
+
+        .gauge-center {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+
+        .aqi-value {
+            font-size: 56px; font-weight: 800; line-height: 1;
+            letter-spacing: -0.02em; color: var(--accent);
+            transition: color 0.5s ease; font-variant-numeric: tabular-nums;
+        }
+
+        .aqi-label {
+            font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted); margin-top: 6px;
+        }
+
+        .status {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin: 16px auto 0; width: fit-content; padding: 8px 16px;
+            border-radius: 999px; font-size: 14px; font-weight: 600;
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            transition: color 0.5s ease, background 0.5s ease;
+        }
+        .status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+        .metric {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border);
+        }
+        .metric-label { font-size: 14px; font-weight: 500; color: var(--muted); }
+        .metric-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .metric-value .unit { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+
+        .advice {
+            display: flex; gap: 12px; align-items: flex-start;
+            margin-top: 18px; padding: 14px 16px;
+            background: rgba(15, 23, 42, 0.03);
+            border-radius: 14px; font-size: 13.5px; line-height: 1.5;
+        }
+        .advice svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; color: var(--accent); transition: color 0.5s ease; }
+
+        /* ---- Map panel ---- */
+        .map-panel { display: flex; flex-direction: column; }
+
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .chip {
+            font-family: inherit; font-size: 13px; font-weight: 500;
+            padding: 6px 13px; border-radius: 999px; cursor: pointer;
+            border: 1px solid var(--border); background: rgba(255, 255, 255, 0.5);
+            color: var(--text); transition: all 0.2s ease;
+        }
+        .chip:hover { background: #fff; }
+        .chip.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+        #map {
+            flex: 1; min-height: 280px; border-radius: 16px;
+            border: 1px solid var(--border); z-index: 1;
+        }
+        .leaflet-popup-content { font-family: "Inter", sans-serif; font-size: 13px; }
+
+        .legend {
+            display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px;
+            font-size: 12px; color: var(--muted);
+        }
+        .legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        /* ---- History panel ---- */
+        .history-panel { margin-top: 20px; }
+        .history-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+        .history-head .panel-title { margin-bottom: 0; }
+        .history-head .sub { font-size: 12px; color: var(--muted); }
+        .chart-wrap { position: relative; height: 220px; }
+
+        @media (max-width: 860px) {
+            .grid { grid-template-columns: 1fr; }
+            #map { min-height: 320px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <h1>{{ app_title }}</h1>
+            <p>{{ app_subtitle }}</p>
+        </header>
+
+        <div class="grid">
+            <!-- AQI utama -->
+            <section class="panel gauge-panel">
+                <div class="panel-title">Kualitas Udara &mdash; <span id="location">{{ data.location }}</span></div>
+
+                <div class="gauge">
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                        <circle class="ring-track" cx="100" cy="100" r="86" fill="none" stroke-width="15"/>
+                        <circle id="ring" class="ring-value" cx="100" cy="100" r="86" fill="none" stroke-width="15"/>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="aqi-value" id="aqi">{{ data.aqi }}</div>
+                        <div class="aqi-label">AQI</div>
+                    </div>
+                </div>
+
+                <div class="status" id="statusBadge">
+                    <span class="dot"></span>
+                    <span id="status">{{ data.status }}</span>
+                </div>
+
+                <div class="metric">
+                    <span class="metric-label">PM 2.5</span>
+                    <span class="metric-value"><span id="pm25">{{ data.pm25 }}</span><span class="unit">µg/m³</span></span>
+                </div>
+
+                <div class="advice">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span id="advice">{{ data.advice }}</span>
+                </div>
+            </section>
+
+            <!-- Pemilihan lokasi via peta -->
+            <section class="panel map-panel">
+                <div class="panel-title">Pilih Lokasi</div>
+                <div class="chips" id="chips"></div>
+                <div id="map"></div>
+                <div class="legend">
+                    <span><i style="background:#10b981"></i>Baik</span>
+                    <span><i style="background:#f59e0b"></i>Sedang</span>
+                    <span><i style="background:#f97316"></i>Tidak Sehat (sensitif)</span>
+                    <span><i style="background:#ef4444"></i>Tidak Sehat+</span>
+                </div>
+            </section>
+        </div>
+
+        <!-- Data historis -->
+        <section class="panel history-panel">
+            <div class="history-head">
+                <div class="panel-title">Data Historis &mdash; 24 Jam Terakhir</div>
+                <div class="sub">AQI per jam</div>
+            </div>
+            <div class="chart-wrap">
+                <canvas id="historyChart"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        const RING_MAX = 200;
+        const RADIUS = 86;
+        const CIRC = 2 * Math.PI * RADIUS;
+        const ring = document.getElementById('ring');
+        ring.style.strokeDasharray = CIRC;
+
+        let currentCity = '{{ default_city }}';
+        let markers = {};
+        let chart = null;
+
+        function colorFor(aqi) {
+            if (aqi <= 50) return "#10b981";    // Baik
+            if (aqi <= 100) return "#f59e0b";   // Sedang
+            if (aqi <= 150) return "#f97316";   // Tidak sehat (sensitif)
+            return "#ef4444";                   // Tidak sehat / berbahaya
+        }
+
+        function hexToRgba(hex, a) {
+            const n = parseInt(hex.slice(1), 16);
+            return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+        }
+
+        // ---- Peta (Leaflet) ----
+        const map = L.map('map', { scrollWheelZoom: false }).setView([-2.5, 117], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap', maxZoom: 18
+        }).addTo(map);
+
+        function loadCities() {
+            fetch('/api/cities')
+                .then(r => r.json())
+                .then(list => {
+                    const chips = document.getElementById('chips');
+                    list.forEach(c => {
+                        // Marker peta
+                        const m = L.circleMarker([c.lat, c.lon], {
+                            radius: 10, fillColor: colorFor(c.aqi),
+                            color: '#fff', weight: 2, fillOpacity: 1
+                        }).addTo(map);
+                        m.bindPopup(`<b>${c.name}</b><br>AQI ${c.aqi} &middot; ${c.status}`);
+                        m.on('click', () => selectCity(c.id));
+                        markers[c.id] = m;
+
+                        // Chip pilih cepat
+                        const chip = document.createElement('button');
+                        chip.className = 'chip';
+                        chip.textContent = c.name;
+                        chip.dataset.city = c.id;
+                        chip.onclick = () => selectCity(c.id);
+                        chips.appendChild(chip);
+                    });
+                    setActiveChip(currentCity);
+                });
+        }
+
+        function setActiveChip(cityId) {
+            document.querySelectorAll('.chip').forEach(ch =>
+                ch.classList.toggle('active', ch.dataset.city === cityId));
+        }
+
+        // ---- Tampilkan data satu kota ----
+        function renderData(d) {
+            const aqi = Number(d.aqi);
+            document.getElementById('location').innerText = d.location;
+            document.getElementById('aqi').innerText = d.aqi;
+            document.getElementById('status').innerText = d.status;
+            document.getElementById('pm25').innerText = d.pm25;
+            document.getElementById('advice').innerText = d.advice;
+
+            const color = colorFor(aqi);
+            document.documentElement.style.setProperty('--accent', color);
+            ring.style.strokeDashoffset = CIRC * (1 - Math.min(aqi / RING_MAX, 1));
+
+            // Sinkronkan warna marker + titik "Now" pada grafik
+            if (markers[d.id]) {
+                markers[d.id].setStyle({ fillColor: color });
+                markers[d.id].setPopupContent(`<b>${d.location}</b><br>AQI ${d.aqi} &middot; ${d.status}`);
+            }
+            if (chart && d.id === currentCity) {
+                const data = chart.data.datasets[0].data;
+                data[data.length - 1] = aqi;
+                chart.data.datasets[0].borderColor = color;
+                chart.data.datasets[0].backgroundColor = makeGradient(color);
+                chart.update('none');
+            }
+        }
+
+        function makeGradient(color) {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            const g = ctx.createLinearGradient(0, 0, 0, 220);
+            g.addColorStop(0, hexToRgba(color, 0.28));
+            g.addColorStop(1, hexToRgba(color, 0));
+            return g;
+        }
+
+        // ---- Grafik historis ----
+        function renderHistory(cityId, currentAqi) {
+            fetch('/api/history?city=' + cityId)
+                .then(r => r.json())
+                .then(res => {
+                    const labels = res.history.map(h => h.time).concat('Now');
+                    const values = res.history.map(h => h.aqi).concat(currentAqi);
+                    const color = colorFor(currentAqi);
+
+                    if (!chart) {
+                        chart = new Chart(document.getElementById('historyChart'), {
+                            type: 'line',
+                            data: { labels, datasets: [{
+                                data: values, borderColor: color,
+                                backgroundColor: makeGradient(color),
+                                borderWidth: 2.5, fill: true, tension: 0.4,
+                                pointRadius: 0, pointHoverRadius: 5,
+                                pointHoverBackgroundColor: color, pointHoverBorderColor: '#fff',
+                            }]},
+                            options: {
+                                responsive: true, maintainAspectRatio: false,
+                                interaction: { intersect: false, mode: 'index' },
+                                plugins: { legend: { display: false },
+                                    tooltip: { displayColors: false,
+                                        callbacks: { label: c => 'AQI ' + c.parsed.y } } },
+                                scales: {
+                                    x: { grid: { display: false },
+                                         ticks: { maxTicksLimit: 8, color: '#94a3b8', font: { size: 11 } } },
+                                    y: { beginAtZero: true,
+                                         grid: { color: 'rgba(15,23,42,0.05)' },
+                                         ticks: { color: '#94a3b8', font: { size: 11 } } }
+                                }
+                            }
+                        });
+                    } else {
+                        chart.data.labels = labels;
+                        chart.data.datasets[0].data = values;
+                        chart.data.datasets[0].borderColor = color;
+                        chart.data.datasets[0].backgroundColor = makeGradient(color);
+                        chart.update();
+                    }
+                });
+        }
+
+        // ---- Pilih kota ----
+        function selectCity(cityId) {
+            currentCity = cityId;
+            setActiveChip(cityId);
+            fetch('/api/data?city=' + cityId)
+                .then(r => r.json())
+                .then(d => {
+                    renderData(d);
+                    renderHistory(cityId, Number(d.aqi));
+                    map.flyTo([d.lat, d.lon], 6, { duration: 0.7 });
+                    if (markers[cityId]) markers[cityId].openPopup();
+                });
+        }
+
+        // ---- Init ----
+        renderData({
+            id: '{{ default_city }}',
+            location: document.getElementById('location').innerText,
+            aqi: document.getElementById('aqi').innerText,
+            status: document.getElementById('status').innerText,
+            pm25: document.getElementById('pm25').innerText,
+            advice: document.getElementById('advice').innerText,
+        });
+        loadCities();
+        renderHistory('{{ default_city }}', Number(document.getElementById('aqi').innerText));
+
+        // Auto-refresh data live sesuai interval dari ConfigMap (REFRESH_INTERVAL)
+        setInterval(() => {
+            fetch('/api/data?city=' + currentCity)
+                .then(r => r.json())
+                .then(renderData);
+        }, {{ refresh_interval }});
+    </script>
+</body>
+</html>
